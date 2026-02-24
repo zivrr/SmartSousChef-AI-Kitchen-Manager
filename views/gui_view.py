@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from datetime import datetime
+from tkinter import messagebox
 
 class KitchenGUI(ctk.CTk):
     def __init__(self, controller):
@@ -121,17 +122,50 @@ class KitchenGUI(ctk.CTk):
             self.refresh_expiry()
 
     def save_product(self):
-        name = self.name_entry.get()
-        weight = self.weight_entry.get()
-        date = self.date_entry.get()
-        if name and weight and date:
-            self.controller.add_product_gui(name, "כללי", weight, date)
+        # 1. שליפת הנתונים וניקוי רווחים
+        name = self.name_entry.get().strip()
+        weight = self.weight_entry.get().strip()
+        date_str = self.date_entry.get().strip()
+
+        # 2. בדיקה שכל השדות מלאים
+        if not name or not weight or not date_str:
+            messagebox.showwarning("שדה חסר", "נא למלא את כל השדות: שם, משקל ותאריך.")
+            return
+
+        # 3. אימות משקל (מספר חיובי)
+        try:
+            w_val = float(weight)
+            if w_val <= 0:
+                messagebox.showerror("שגיאה במשקל", "המשקל חייב להיות מספר גדול מאפס.")
+                return
+        except ValueError:
+            messagebox.showerror("שגיאה במשקל", "נא להזין מספר בלבד בשדה המשקל.")
+            return
+
+        # 4. אימות פורמט ותקינות תאריך (DD/MM/YYYY)
+        try:
+            datetime.strptime(date_str, "%d/%m/%Y")
+        except ValueError:
+            messagebox.showerror("פורמט תאריך שגוי", 
+                                 f"התאריך '{date_str}' אינו תקין.\nנא להזין בפורמט: DD/MM/YYYY\n(לדוגמה: 01/05/2026)")
+            return
+
+        # 5. ניסיון שמירה
+        success = self.controller.add_product_gui(name, "כללי", weight, date_str)
+        
+        if success:
             self.refresh_inventory_list()
             self.refresh_expiry()
+            
+            # ניקוי שדות
             self.name_entry.delete(0, 'end')
             self.weight_entry.delete(0, 'end')
             self.date_entry.delete(0, 'end')
-
+            
+            # הודעת הצלחה
+            messagebox.showinfo("הצלחה", f"המוצר '{name}' נוסף למלאי!")
+        else:
+            messagebox.showerror("שגיאת מערכת", "אירעה שגיאה בשמירת המוצר במסד הנתונים.")
     # --- מסך 3: תוקף מוצרים ---
     def setup_expiry_tab(self):
         # כותרת ראשית מעודכנת
@@ -159,35 +193,7 @@ class KitchenGUI(ctk.CTk):
         
         self.refresh_expiry()
 
-    def refresh_expiry(self):
-        """רענון הרשימה וצביעה לפי הלוגיקה החדשה"""
-        for widget in self.expiry_scroll.winfo_children():
-            widget.destroy()
-            
-        data = self.controller.get_expiry_data()
-        
-        for p, hours in data:
-            # לוגיקת צבעים:
-            if hours <= 72:
-                color = "#D32F2F"  # אדום
-                text_color = "white"
-            elif hours <= 240: # שבוע (168ש') + 72ש' = 240 שעות
-                color = "#FBC02D"  # צהוב/כתום
-                text_color = "black"
-            else:
-                color = "#388E3C"  # ירוק
-                text_color = "white"
-
-            f = ctk.CTkFrame(self.expiry_scroll, fg_color=color)
-            f.pack(fill="x", pady=5, padx=15)
-            
-            # חישוב ימים ושעות לתצוגה
-            days_left = int(hours // 24)
-            remaining_hours = int(hours % 24)
-            
-            txt = f"מוצר: {p.name} | תוקף בעוד: {days_left} ימים ו-{remaining_hours} שעות"
-            ctk.CTkLabel(f, text=txt, text_color=text_color, 
-                          font=("Arial", 15, "bold"), anchor="e").pack(side="right", padx=25, pady=12)
+   
     def refresh_expiry(self):
         for widget in self.expiry_scroll.winfo_children():
             widget.destroy()
