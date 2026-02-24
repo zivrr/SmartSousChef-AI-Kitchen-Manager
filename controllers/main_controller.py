@@ -9,12 +9,13 @@ class MainController:
 
     def add_product_gui(self, name, category, weight, date):
         try:
-            weight_val = float(weight) if weight else 0.0
+            # המרת המשקל למספר לפני יצירת האובייקט
+            weight_val = float(weight)
             new_prod = Product(name, category, weight_val, date)
             self.db.add_product(new_prod)
             return True
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"שגיאה קריטית במסד הנתונים: {e}")
             return False
 
     def delete_product_gui(self, product_id):
@@ -34,9 +35,24 @@ class MainController:
     def get_expiry_data(self):
         """שליפת כל המלאי ממוין לפי תוקף (רמזור)"""
         all_products = self.db.get_all_products()
-        product_data = [(p, p.days_to_expiry()) for p in all_products]
+        product_data = [(p, p.hours_to_expiry) for p in all_products]
         product_data.sort(key=lambda x: x[1])
         return product_data
+    
+    def search_products(self, search_term):
+        """מחזיר רשימת מוצרים ששמם מכיל את טקסט החיפוש"""
+        all_products = self.db.get_all_products()
+        if not search_term:
+            return all_products
+        
+        # סינון לפי שם המוצר (Case-insensitive)
+        return [p for p in all_products if search_term.lower() in p.name.lower()]
+    
+    def search_products(self, search_term):
+        all_products = self.db.get_all_products()
+        if not search_term:
+            return all_products
+        return [p for p in all_products if search_term.lower() in p.name.lower()]
 
     def get_ai_recipe_flow(self, user_request=""):
         """
@@ -60,7 +76,7 @@ f"AVAILABLE INVENTORY (from SQLite): {all_ingredients}\n"
 f"USER REQUEST: \"{user_request}\"\n\n"
 
 f"STRICT OPERATIONAL RULES:\n"
-f"1. INVENTORY MAPPING: For every ingredient used, write it exactly as: English Name (Hebrew Name from inventory). Example: Spinach (תרד).\n"
+f"1. INVENTORY MAPPING: For every ingredient used, write it exactly as: Name from inventory. Example: Spinach.\n"
 f"2. NO HALLUCINATIONS: Do not list ingredients in the 'Ingredients Used' section that are not in the provided inventory list.\n"
 f"3. CONSISTENCY: Every item listed in the 'Ingredients Used' section MUST appear in the 'Cooking Instructions' and vice versa.\n"
 f"4. LANGUAGE: The recipe and instructions must be in English, but the Hebrew names from the inventory must be preserved in parentheses.\n"
@@ -69,7 +85,7 @@ f"5. SIMPLICITY: Keep instructions concise and easy to follow.\n\n"
 f"FORMAT YOUR RESPONSE LIKE THIS:\n"
 f"Dish Name: [Name]\n"
 f"Ingredients Used from Inventory:\n"
-f"* English Name (Hebrew Name)\n\n"
+f"* English Name \n\n"
 f"Cooking Instructions:\n"
 f"1. [Step 1]..."
 )    
