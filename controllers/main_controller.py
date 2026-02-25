@@ -4,21 +4,29 @@ from models.product import Product
 
 class MainController:
     def __init__(self, db_manager):
-        """אתחול הבקר - הפרדת רשויות SoC"""
+        """אתחול הבקר - הפרדת רשויות SoC (Separation of Concerns)"""
         self.db = db_manager
 
     def add_product_gui(self, name, category, weight, date):
+        """
+        ניסיון הוספת מוצר חדש. 
+        הבדיקות (Validations) מבוצעות בתוך מחלקת Product דרך ה-Setters.
+        """
         try:
-            # המרת המשקל למספר לפני יצירת האובייקט
-            weight_val = float(weight)
-            new_prod = Product(name, category, weight_val, date)
+            # יצירת האובייקט תפעיל את ה-Setters של Product.
+            # אם נתון לא תקין (למשל משקל שלילי), תיזרק שגיאת ValueError.
+            new_prod = Product(name, category, weight, date)
             self.db.add_product(new_prod)
-            return True
+            return True, "Product added successfully!"
+        except ValueError as e:
+            # תפיסת שגיאת הולידציה והחזרת ההודעה המדויקת ל-GUI
+            return False, str(e)
         except Exception as e:
-            print(f"שגיאה קריטית במסד הנתונים: {e}")
-            return False
+            # תפיסת שגיאות כלליות (כמו בעיות במסד הנתונים)
+            return False, f"System Error: {e}"
 
     def delete_product_gui(self, product_id):
+        """מחיקת מוצר לפי ה-ID הייחודי שלו"""
         try:
             self.db.delete_product(product_id)
             return True
@@ -26,44 +34,44 @@ class MainController:
             return False
 
     def update_product_weight(self, product_id, new_weight):
+        """עדכון משקל למוצר קיים במערכת"""
         try:
+            # המרת הקלט למספר לפני השליחה למסד הנתונים
             self.db.update_weight(product_id, float(new_weight))
             return True
         except:
             return False
 
     def get_expiry_data(self):
-        """שליפת כל המלאי ממוין לפי תוקף (רמזור)"""
+        """שליפת המלאי וחישוב זמני תוקף לצורך תצוגת הרמזור"""
         all_products = self.db.get_all_products()
+        # שימוש ב-Property hours_to_expiry שקיים ב-Model
         product_data = [(p, p.hours_to_expiry) for p in all_products]
+        # מיון המוצרים כך שהדחופים ביותר יופיעו ראשונים
         product_data.sort(key=lambda x: x[1])
         return product_data
     
     def search_products(self, search_term):
-        """מחזיר רשימת מוצרים ששמם מכיל את טקסט החיפוש"""
+        """סינון מוצרים לפי שם (Case-insensitive) לצורך ה-Search ב-GUI"""
         all_products = self.db.get_all_products()
         if not search_term:
             return all_products
         
-        # סינון לפי שם המוצר (Case-insensitive)
-        return [p for p in all_products if search_term.lower() in p.name.lower()]
-    
-    def search_products(self, search_term):
-        all_products = self.db.get_all_products()
-        if not search_term:
-            return all_products
         return [p for p in all_products if search_term.lower() in p.name.lower()]
 
     def get_ai_recipe_flow(self, user_request=""):
         """
-        הפקת מתכון באנגלית עם לוגיקה נוקשה למניעת מתכונים הזויים
+        ניהול זרימת המידע מול שרת ה-AI (Ollama)
+        הזרקת המלאי הקיים לתוך ה-Prompt כדי לקבל מתכון מותאם אישית.
         """
         products = self.db.get_all_products()
         if not products:
             return "Inventory empty. Please add items."
 
+        # הכנת רשימת המצרכים כהקשר (Context) עבור ה-AI
         ingredients_list = [p.name for p in products]
         all_ingredients = ", ".join(ingredients_list)
+        
         
         url = "http://127.0.0.1:11434/api/generate"
         
@@ -94,13 +102,13 @@ f"1. [Step 1]..."
             "model": "llama3:latest", 
             "prompt": full_prompt,
             "stream": False
-        }
+            }
         
         try:
+            # שליחת הבקשה לשרת המקומי (Ollama)
             response = requests.post(url, json=payload, timeout=35)
             if response.status_code == 200:
-                recipe = response.json().get('response', "").strip()
-                return recipe.split("</thought>")[-1].strip()
+                return response.json().get('response', "").strip()
             return "AI Server Error."
         except:
-            return "Ollama not running. Check terminal (ollama serve)."
+            return "Ollama not running. Ensure Docker/Ollama is active."
