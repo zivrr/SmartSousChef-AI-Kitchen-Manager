@@ -52,10 +52,17 @@ class Product:
     @expiry_date.setter
     def expiry_date(self, value):
         try:
-            # בדיקת פורמט התאריך
-            datetime.strptime(value, "%d/%m/%Y")
+            # 1. בדיקת פורמט התאריך
+            input_date = datetime.strptime(value, "%d/%m/%Y")
+            
+            # 2. בדיקה האם התאריך כבר עבר (השוואה ברמת היום)
+            if input_date.date() < datetime.now().date():
+                raise ValueError("Expiry date cannot be in the past. We only track fresh inventory!")
+            
             self._expiry_date = value
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            if "past" in str(e):
+                raise e
             raise ValueError("Invalid date format. Use DD/MM/YYYY")
 
     # --- Logic Properties ---
