@@ -24,7 +24,13 @@ class DatabaseManager:
         cursor = self.conn.execute("SELECT * FROM products")
         products = []
         for row in cursor:
-            products.append(Product(row[1], row[2], row[3], row[4], row[0]))
+            try:
+                # ניסיון ליצור אובייקט Product. אם התאריך ישן, ה-Model יזרוק ValueError
+                products.append(Product(row[1], row[2], row[3], row[4], row[0]))
+            except ValueError as e:
+                # במקום לקרוס, נדפיס אזהרה ונדלג על המוצר הבעייתי
+                print(f"Skipping invalid product ID {row[0]}: {e}")
+                continue
         return products
     
     def delete_product(self, product_id):

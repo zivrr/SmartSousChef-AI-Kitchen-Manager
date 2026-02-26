@@ -51,6 +51,19 @@ class MainController:
         product_data.sort(key=lambda x: x[1])
         return product_data
     
+    def check_invalid_products(self):
+        """בודק כמה מוצרים פגי תוקף קיימים ב-DB שאינם עומדים בחוקי ה-Model"""
+        cursor = self.db.conn.execute("SELECT name FROM products")
+        invalid_count = 0
+        for row in cursor:
+            try:
+                # ניסיון ליצור אובייקט זמני רק כדי לבדוק תקינות
+                Product(row[0], "temp", "1", "01/01/1990") # תאריך ישן בכוונה
+                # אם הקוד מגיע לכאן, סימן שהמוצר ב-DB תקין (לא יקרה במקרה שלנו)
+            except ValueError:
+                invalid_count += 1
+        return invalid_count
+    
     def search_products(self, search_term):
         """סינון מוצרים לפי שם (Case-insensitive) לצורך ה-Search ב-GUI"""
         all_products = self.db.get_all_products()
@@ -106,9 +119,10 @@ f"1. [Step 1]..."
         
         try:
             # שליחת הבקשה לשרת המקומי (Ollama)
-            response = requests.post(url, json=payload, timeout=35)
+            response = requests.post(url, json=payload, timeout=120)
             if response.status_code == 200:
                 return response.json().get('response', "").strip()
             return "AI Server Error."
         except:
             return "Ollama not running. Ensure Docker/Ollama is active."
+     

@@ -6,6 +6,7 @@ import threading
 class KitchenGUI(ctk.CTk):
     def __init__(self, controller):
         super().__init__()
+        self.after(1000, self.show_startup_alerts) # מחכה שנייה אחת אחרי העלייה
         
         # הגדרות בסיסיות של חלון האפליקציה
         self.controller = controller
@@ -13,8 +14,8 @@ class KitchenGUI(ctk.CTk):
         self.geometry("1150x850")
         
         # הגדרת ערכת נושא
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
+        ctk.set_appearance_mode("light")
+        ctk.set_default_color_theme("green")
 
         # משתנה לניהול השהיית החיפוש (Debounce)
         self._search_job = None
@@ -81,6 +82,18 @@ class KitchenGUI(ctk.CTk):
         self.ai_result.insert("1.0", result)
         self.ai_btn.configure(state="normal")
         self.update_idletasks()
+
+    def show_startup_alerts(self):
+        # שליפת נתונים מהבקר לגבי מוצרים שסוננו
+        all_prods = self.controller.db.get_all_products()
+        # אם יש מוצרים ב-DB שלא נכנסו לרשימה (כי ה-DatabaseManager סינן אותם)
+        total_in_db = self.controller.db.conn.execute("SELECT COUNT(*) FROM products").fetchone()[0]
+        
+        skipped = total_in_db - len(all_prods)
+        
+        if skipped > 0:
+            messagebox.showwarning("Inventory Update", 
+                f"Notice: {skipped} expired products were hidden from your inventory list to ensure food safety.")
 
     # --- לשונית 2: ניהול מלאי ---
     def setup_inventory_tab(self):
