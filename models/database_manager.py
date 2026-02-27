@@ -33,6 +33,20 @@ class DatabaseManager:
                 continue
         return products
     
+    def get_expired_raw(self):
+        """שליפת מוצרים שפג תוקפם ישירות מה-DB ללא ולידציה של המודל"""
+        cursor = self.conn.execute("SELECT id, name, category, weight, expiry_date FROM products")
+        expired_list = []
+        for row in cursor:
+            # כאן אנחנו לא יוצרים אובייקט Product, אלא פשוט שומרים את הנתונים
+            expired_list.append({
+                "id": row[0],
+                "name": row[1],
+                "weight": row[3],
+                "date": row[4]
+            })
+        return expired_list
+    
     def delete_product(self, product_id):
         # מחיקת מוצר מהמלאי
         self.conn.execute("DELETE FROM products WHERE id = ?", (product_id,))

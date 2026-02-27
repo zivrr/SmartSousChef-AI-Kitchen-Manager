@@ -72,6 +72,19 @@ class MainController:
         
         return [p for p in all_products if search_term.lower() in p.name.lower()]
 
+    def get_only_invalid_products(self):
+        """מחזירה רק את המוצרים שאינם עוברים את הולידציה של המודל"""
+        raw_data = self.db.get_expired_raw()
+        invalid = []
+        for item in raw_data:
+            try:
+                # מנסים ליצור אובייקט - אם מצליח, המוצר תקין ולא נכנס לרשימה הזו
+                Product(item['name'], "temp", item['weight'], item['date'])
+            except ValueError:
+                # אם נזרקה שגיאה, זה המוצר שחיפשנו (פג תוקף/לא תקין)
+             invalid.append(item)
+        return invalid
+
     def get_ai_recipe_flow(self, user_request=""):
         """
         ניהול זרימת המידע מול שרת ה-AI (Ollama)
